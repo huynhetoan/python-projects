@@ -1,5 +1,5 @@
 # Sierpinski Triangle
-#### Graphics, recursion, and algorithmic art. Helps visualizing mathematical concepts. Uses Python’s turtle graphics library and recursion.
+#### Algorithmic art that helps visualizing mathematical concepts. Uses Python’s turtle graphics library.
 ## Features
 #### Has customizable recursion depth and uses different colors per layer.
 ## How to Run
