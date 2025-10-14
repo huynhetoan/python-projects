@@ -6,6 +6,7 @@ from matplotlib.figure import Figure
 import numpy as np
 import math
 from typing import List, Tuple
+import matplotlib.cm as cm
 
 class FractalGenerator:
     def __init__(self):
@@ -117,16 +118,19 @@ class FractalGUI:
         self.root.title("Fractal Generator")
         self.root.geometry("1000x800")
         
+        # Configure grey theme
+        self.setup_theme()
+        
         self.fractal_generator = FractalGenerator()
         self.current_fractal = "Sierpinski Triangle"
         self.depth = 3
-        self.color_scheme = "Rainbow"
+        self.color_scheme = "Vibrant"
         
         self.setup_ui()
         self.update_fractal()
     
     def setup_ui(self):
-        # Main frame
+        # Main frame with grey background
         main_frame = ttk.Frame(self.root)
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
@@ -143,24 +147,28 @@ class FractalGUI:
         fractal_combo.pack(fill=tk.X, pady=(0, 10))
         fractal_combo.bind('<<ComboboxSelected>>', self.on_fractal_change)
         
-        # Depth slider
-        ttk.Label(control_frame, text=f"Depth: {self.depth}").pack(anchor=tk.W)
+        # Depth slider (limited to 7)
+        self.depth_label = ttk.Label(control_frame, text=f"Depth: {self.depth}")
+        self.depth_label.pack(anchor=tk.W)
         self.depth_var = tk.IntVar(value=self.depth)
-        depth_scale = ttk.Scale(control_frame, from_=0, to=8, variable=self.depth_var, 
+        depth_scale = ttk.Scale(control_frame, from_=0, to=7, variable=self.depth_var, 
                               orient=tk.HORIZONTAL, command=self.on_depth_change)
         depth_scale.pack(fill=tk.X, pady=(0, 10))
+        
+        # Add update delay to prevent too frequent updates during slider movement
+        self.update_job = None
         
         # Color scheme selection
         ttk.Label(control_frame, text="Color Scheme:").pack(anchor=tk.W)
         self.color_var = tk.StringVar(value=self.color_scheme)
         color_combo = ttk.Combobox(control_frame, textvariable=self.color_var,
-                                 values=["Rainbow", "Blues", "Greens", "Reds", "Purples"],
+                                 values=["Vibrant", "Ocean", "Sunset", "Forest", "Fire", "Pastel"],
                                  state="readonly")
         color_combo.pack(fill=tk.X, pady=(0, 10))
         color_combo.bind('<<ComboboxSelected>>', self.on_color_change)
         
-        # Update button
-        update_btn = ttk.Button(control_frame, text="Update Fractal", command=self.update_fractal)
+        # Update button (now optional since slider auto-updates)
+        update_btn = ttk.Button(control_frame, text="Refresh Fractal", command=self.update_fractal)
         update_btn.pack(fill=tk.X, pady=(0, 10))
         
         # Save button
@@ -171,21 +179,36 @@ class FractalGUI:
         plot_frame = ttk.Frame(main_frame)
         plot_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
         
-        # Create matplotlib figure
-        self.figure = Figure(figsize=(8, 6), dpi=100)
+        # Create matplotlib figure with grey theme
+        self.figure = Figure(figsize=(8, 6), dpi=100, facecolor='#f0f0f0')
         self.canvas = FigureCanvasTkAgg(self.figure, plot_frame)
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+    
+    def setup_theme(self):
+        """Setup the grey theme for the application."""
+        self.root.configure(bg='#e0e0e0')
+        
+        # Configure matplotlib style
+        plt.style.use('default')
+        plt.rcParams['figure.facecolor'] = '#f0f0f0'
+        plt.rcParams['axes.facecolor'] = 'white'
+        plt.rcParams['axes.edgecolor'] = '#666666'
+        plt.rcParams['text.color'] = '#333333'
+        plt.rcParams['axes.labelcolor'] = '#333333'
+        plt.rcParams['xtick.color'] = '#666666'
+        plt.rcParams['ytick.color'] = '#666666'
     
     def get_color_palette(self):
         """Get color palette based on selected scheme."""
         schemes = {
-            "Rainbow": ["#ff0000", "#ff7f00", "#ffff00", "#00ff00", "#0000ff", "#4b0082", "#9400d3"],
-            "Blues": ["#1f77b4", "#aec7e8", "#ff7f0e", "#ffbb78", "#2ca02c"],
-            "Greens": ["#2ca02c", "#98df8a", "#d62728", "#ff9896", "#9467bd"],
-            "Reds": ["#d62728", "#ff9896", "#9467bd", "#c5b0d5", "#8c564b"],
-            "Purples": ["#9467bd", "#c5b0d5", "#8c564b", "#c49c94", "#e377c2"]
+            "Vibrant": ["#e74c3c", "#f39c12", "#f1c40f", "#2ecc71", "#3498db", "#9b59b6", "#e91e63"],
+            "Ocean": ["#1abc9c", "#16a085", "#3498db", "#2980b9", "#34495e", "#2c3e50", "#95a5a6"],
+            "Sunset": ["#ff7675", "#fd79a8", "#fdcb6e", "#e17055", "#d63031", "#74b9ff", "#0984e3"],
+            "Forest": ["#00b894", "#00cec9", "#55a3ff", "#74b9ff", "#a29bfe", "#6c5ce7", "#fd79a8"],
+            "Fire": ["#ff6b6b", "#ffa726", "#ffca28", "#66bb6a", "#42a5f5", "#ab47bc", "#ef5350"],
+            "Pastel": ["#ff9ff3", "#54a0ff", "#5f27cd", "#00d2d3", "#ff9f43", "#10ac84", "#ee5a24"]
         }
-        return schemes.get(self.color_scheme, schemes["Rainbow"])
+        return schemes.get(self.color_scheme, schemes["Vibrant"])
     
     def on_fractal_change(self, event):
         self.current_fractal = self.fractal_var.get()
@@ -193,15 +216,15 @@ class FractalGUI:
     
     def on_depth_change(self, value):
         self.depth = int(float(value))
-        # Update the label
-        for widget in self.root.winfo_children():
-            if isinstance(widget, ttk.Frame):
-                for child in widget.winfo_children():
-                    if isinstance(child, ttk.LabelFrame):
-                        for grandchild in child.winfo_children():
-                            if isinstance(grandchild, ttk.Label) and grandchild.cget('text').startswith('Depth:'):
-                                grandchild.config(text=f"Depth: {self.depth}")
-                                break
+        # Update the label directly
+        self.depth_label.config(text=f"Depth: {self.depth}")
+        
+        # Cancel any pending update
+        if self.update_job:
+            self.root.after_cancel(self.update_job)
+        
+        # Schedule a new update after a short delay to prevent too frequent updates
+        self.update_job = self.root.after(100, self.update_fractal)
     
     def on_color_change(self, event):
         self.color_scheme = self.color_var.get()
@@ -211,13 +234,13 @@ class FractalGUI:
         """Update the fractal display."""
         self.figure.clear()
         ax = self.figure.add_subplot(111)
-        ax.set_aspect('equal')
-        ax.axis('off')
         
         palette = self.get_color_palette()
         
         try:
             if self.current_fractal == "Sierpinski Triangle":
+                ax.set_aspect('equal')
+                ax.axis('off')
                 # Equilateral triangle coordinates
                 size = 200
                 points = [(-size, -size), (0, size), (size, -size)]
@@ -226,22 +249,36 @@ class FractalGUI:
                 ax.set_ylim(-size*1.2, size*1.2)
                 
             elif self.current_fractal == "Koch Snowflake":
+                ax.set_aspect('equal')
+                ax.axis('off')
                 self.fractal_generator.koch_snowflake((0, 0), 300, self.depth, ax, palette)
                 ax.set_xlim(-200, 200)
                 ax.set_ylim(-200, 200)
                 
             elif self.current_fractal == "Cantor Set":
+                ax.set_aspect('equal')
+                ax.axis('off')
                 self.fractal_generator.cantor_set((-200, 0), 400, self.depth, ax, palette[0], 100)
                 ax.set_xlim(-250, 250)
                 ax.set_ylim(-200, 150)
                 
             elif self.current_fractal == "Mandelbrot Set":
                 # For Mandelbrot, use depth as max iterations
-                max_iter = max(50, self.depth * 20)
+                max_iter = max(50, self.depth * 30 + 20)
                 self.fractal_generator.mandelbrot_set(ax, max_iter)
+                ax.set_aspect('equal')
+                ax.set_xlabel('Real', color='#333333')
+                ax.set_ylabel('Imaginary', color='#333333')
             
-            ax.set_title(f"{self.current_fractal} (Depth: {self.depth})")
-            self.canvas.draw()
+            # Set title with proper spacing to avoid covering the image
+            self.figure.suptitle(f"{self.current_fractal} (Depth: {self.depth})", 
+                               fontsize=14, y=0.95, color='#333333')
+            
+            # Adjust layout to prevent title overlap
+            self.figure.tight_layout(rect=[0, 0.03, 1, 0.93])
+            
+            # Force canvas update
+            self.canvas.draw_idle()
             
         except Exception as e:
             messagebox.showerror("Error", f"Error generating fractal: {str(e)}")
