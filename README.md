@@ -55,7 +55,7 @@ python fractal_gui.py
 5. Use "Save Image" to export your fractal as a PNG file
 
 ### Example: Koch Snowflake at Depth 5
-![Koch Snowflake Depth 5](koch_snowflake_depth_5.png)
+<img src="koch_snowflake_depth_5.png" alt="Koch Snowflake Depth 5" width="600">
 
 ## Fractal Types
 
