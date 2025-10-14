@@ -7,6 +7,9 @@ import numpy as np
 import math
 from typing import List, Tuple
 import matplotlib.cm as cm
+from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.patches import Polygon
+import colorsys
 
 class FractalGenerator:
     def __init__(self):
@@ -17,75 +20,204 @@ class FractalGenerator:
         """Calculate midpoint between two points."""
         return ((p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2)
     
-    def draw_triangle(self, points: List[Tuple[float, float]], color: str, ax):
-        """Draw a filled triangle."""
-        triangle = plt.Polygon(points, color=color, alpha=0.8)
+    def draw_triangle(self, points: List[Tuple[float, float]], color: str, ax, depth: int, max_depth: int):
+        """Draw a filled triangle with gradient shading."""
+        # Create gradient effect based on depth
+        alpha = 0.9 - (depth / max_depth) * 0.3
+        
+        # Fix polygon color warning by using facecolor instead of color
+        triangle = Polygon(points, facecolor=color, alpha=alpha, edgecolor='black', linewidth=0.5)
         ax.add_patch(triangle)
     
-    def sierpinski_triangle(self, points: List[Tuple[float, float]], depth: int, ax, palette: List[str]):
-        """Generate Sierpinski triangle fractal."""
-        self.draw_triangle(points, palette[depth % len(palette)], ax)
+    def sierpinski_triangle(self, points: List[Tuple[float, float]], depth: int, ax, palette: List[str], max_depth: int = 7):
+        """Generate Sierpinski triangle fractal with gradient colors."""
+        # Create gradient color based on depth
+        color = self.create_gradient_color(palette, depth, max_depth)
+        self.draw_triangle(points, color, ax, depth, max_depth)
+        
         if depth > 0:
             p0, p1, p2 = points
-            self.sierpinski_triangle([p0, self.midpoint(p0, p1), self.midpoint(p0, p2)], depth - 1, ax, palette)
-            self.sierpinski_triangle([p1, self.midpoint(p1, p0), self.midpoint(p1, p2)], depth - 1, ax, palette)
-            self.sierpinski_triangle([p2, self.midpoint(p2, p0), self.midpoint(p2, p1)], depth - 1, ax, palette)
+            self.sierpinski_triangle([p0, self.midpoint(p0, p1), self.midpoint(p0, p2)], depth - 1, ax, palette, max_depth)
+            self.sierpinski_triangle([p1, self.midpoint(p1, p0), self.midpoint(p1, p2)], depth - 1, ax, palette, max_depth)
+            self.sierpinski_triangle([p2, self.midpoint(p2, p0), self.midpoint(p2, p1)], depth - 1, ax, palette, max_depth)
     
-    def koch_curve(self, start: Tuple[float, float], end: Tuple[float, float], depth: int, ax, color: str):
-        """Generate Koch curve fractal."""
+    def koch_curve(self, start: Tuple[float, float], end: Tuple[float, float], depth: int, ax, color: str, max_depth: int = 7):
+        """Generate Koch curve fractal with gradient line width."""
         if depth == 0:
-            ax.plot([start[0], end[0]], [start[1], end[1]], color=color, linewidth=2)
+            # Gradient line width based on depth
+            linewidth = 3 - (max_depth - depth) * 0.2
+            linewidth = max(0.5, linewidth)
+            ax.plot([start[0], end[0]], [start[1], end[1]], color=color, linewidth=linewidth, alpha=0.9)
         else:
             # Calculate the four points of the Koch curve
             p1 = start
             p2 = ((2*start[0] + end[0])/3, (2*start[1] + end[1])/3)
             
-            # Calculate the peak point
+            # Calculate the peak point - corrected angle calculation
             dx = end[0] - start[0]
             dy = end[1] - start[1]
-            angle = math.atan2(dy, dx)
             length = math.sqrt(dx*dx + dy*dy) / 3
+            angle = math.atan2(dy, dx)
             
-            p3 = (start[0] + length * math.cos(angle - math.pi/3), 
-                  start[1] + length * math.sin(angle - math.pi/3))
+            # The peak should be at 60 degrees from the line
+            p3 = (p2[0] + length * math.cos(angle + math.pi/3), 
+                  p2[1] + length * math.sin(angle + math.pi/3))
             
             p4 = ((start[0] + 2*end[0])/3, (start[1] + 2*end[1])/3)
             p5 = end
             
             # Recursively draw the four segments
-            self.koch_curve(p1, p2, depth - 1, ax, color)
-            self.koch_curve(p2, p3, depth - 1, ax, color)
-            self.koch_curve(p3, p4, depth - 1, ax, color)
-            self.koch_curve(p4, p5, depth - 1, ax, color)
+            self.koch_curve(p1, p2, depth - 1, ax, color, max_depth)
+            self.koch_curve(p2, p3, depth - 1, ax, color, max_depth)
+            self.koch_curve(p3, p4, depth - 1, ax, color, max_depth)
+            self.koch_curve(p4, p5, depth - 1, ax, color, max_depth)
     
     def koch_snowflake(self, center: Tuple[float, float], size: float, depth: int, ax, palette: List[str]):
-        """Generate Koch snowflake fractal."""
-        # Calculate triangle vertices
+        """Generate Koch snowflake fractal with gradient colors."""
+        # Alternative approach: Start with equilateral triangle
+        # Calculate the three vertices of the initial triangle
         height = size * math.sqrt(3) / 2
-        p1 = (center[0], center[1] + height)
-        p2 = (center[0] - size/2, center[1] - height/2)
-        p3 = (center[0] + size/2, center[1] - height/2)
         
-        color = palette[depth % len(palette)]
-        self.koch_curve(p1, p2, depth, ax, color)
-        self.koch_curve(p2, p3, depth, ax, color)
-        self.koch_curve(p3, p1, depth, ax, color)
-    
-    def cantor_set(self, start: Tuple[float, float], length: float, depth: int, ax, color: str, y_pos: float):
-        """Generate Cantor set fractal."""
+        # Vertices of equilateral triangle
+        v1 = (center[0], center[1] + 2*height/3)
+        v2 = (center[0] - size/2, center[1] - height/3)
+        v3 = (center[0] + size/2, center[1] - height/3)
+        
+        color = self.create_gradient_color(palette, depth, 7)
+        
+        # Draw the three sides of the triangle using Koch curves
+        # Try alternative approach for better snowflake formation
         if depth == 0:
-            ax.plot([start[0], start[0] + length], [y_pos, y_pos], color=color, linewidth=3)
+            # Base case: draw simple triangle
+            triangle = plt.Polygon([v1, v2, v3], fill=False, edgecolor=color, linewidth=2, alpha=0.9)
+            ax.add_patch(triangle)
         else:
-            # Draw the middle third
-            self.cantor_set(start, length/3, depth - 1, ax, color, y_pos)
-            self.cantor_set((start[0] + 2*length/3, start[1]), length/3, depth - 1, ax, color, y_pos)
+            # Recursive case: apply Koch curve transformation to each side
+            # Use the proper Koch curve implementation
+            self.koch_curve_proper(v1, v2, depth, ax, color, 7)
+            self.koch_curve_proper(v2, v3, depth, ax, color, 7)
+            self.koch_curve_proper(v3, v1, depth, ax, color, 7)
+    
+    def koch_curve_proper(self, start: Tuple[float, float], end: Tuple[float, float], depth: int, ax, color: str, max_depth: int = 7):
+        """Proper Koch curve implementation following the mathematical definition."""
+        if depth == 0:
+            # Base case: draw a straight line
+            linewidth = 3 - (max_depth - depth) * 0.2
+            linewidth = max(0.5, linewidth)
+            ax.plot([start[0], end[0]], [start[1], end[1]], color=color, linewidth=linewidth, alpha=0.9)
+        else:
+            # Divide the line segment into three equal parts
+            p1 = start
+            p2 = ((2*start[0] + end[0])/3, (2*start[1] + end[1])/3)
+            p4 = ((start[0] + 2*end[0])/3, (start[1] + 2*end[1])/3)
+            p5 = end
             
-            # Draw the next level below
-            self.cantor_set(start, length/3, depth - 1, ax, color, y_pos - 30)
-            self.cantor_set((start[0] + 2*length/3, start[1]), length/3, depth - 1, ax, color, y_pos - 30)
+            # Calculate the outward bend (equilateral triangle peak)
+            # Vector from p2 to p4
+            dx = p4[0] - p2[0]
+            dy = p4[1] - p2[1]
+            segment_length = math.sqrt(dx*dx + dy*dy)
+            
+            if segment_length > 0:
+                # Unit vector along the line segment
+                ux = dx / segment_length
+                uy = dy / segment_length
+                
+                # Perpendicular vector (rotated 90 degrees counterclockwise)
+                px = -uy
+                py = ux
+                
+                # The peak forms an equilateral triangle, so the height is segment_length * sqrt(3)/2
+                height = segment_length * math.sqrt(3) / 2
+                
+                # The peak point is at the midpoint of p2-p4 plus the height in perpendicular direction
+                p3 = (p2[0] + (p4[0] - p2[0])/2 + px * height,
+                      p2[1] + (p4[1] - p2[1])/2 + py * height)
+            else:
+                p3 = p2
+            
+            # Recursively draw the four segments
+            self.koch_curve_proper(p1, p2, depth - 1, ax, color, max_depth)
+            self.koch_curve_proper(p2, p3, depth - 1, ax, color, max_depth)
+            self.koch_curve_proper(p3, p4, depth - 1, ax, color, max_depth)
+            self.koch_curve_proper(p4, p5, depth - 1, ax, color, max_depth)
+    
+    def cantor_set_proper(self, intervals: List[Tuple[float, float]], depth: int, ax, color: str, y_pos: float, max_depth: int = 7):
+        """Proper Cantor set implementation following the mathematical definition."""
+        if depth == 0:
+            # Base case: draw all remaining intervals
+            linewidth = 4 - (max_depth - depth) * 0.3
+            linewidth = max(1, linewidth)
+            alpha = 1.0 - (max_depth - depth) * 0.1
+            
+            for start, end in intervals:
+                ax.plot([start, end], [y_pos, y_pos], color=color, linewidth=linewidth, alpha=alpha)
+        else:
+            # Apply Cantor set construction: delete middle third from each interval
+            new_intervals = []
+            
+            for start, end in intervals:
+                length = end - start
+                # Create two new intervals: [start, start + length/3] and [start + 2*length/3, end]
+                new_intervals.append((start, start + length/3))
+                new_intervals.append((start + 2*length/3, end))
+            
+            # Recursively apply to the new intervals
+            self.cantor_set_proper(new_intervals, depth - 1, ax, color, y_pos - 10, max_depth)
+            
+            # Also draw the current level
+            linewidth = 4 - (max_depth - depth) * 0.3
+            linewidth = max(1, linewidth)
+            alpha = 1.0 - (max_depth - depth) * 0.1
+            
+            for start, end in intervals:
+                ax.plot([start, end], [y_pos, y_pos], color=color, linewidth=linewidth, alpha=alpha)
+    
+    def cantor_set(self, start: Tuple[float, float], length: float, depth: int, ax, color: str, y_pos: float, max_depth: int = 7):
+        """Wrapper for Cantor set that converts to proper format."""
+        # Start with the interval [0, 1] and scale it
+        initial_intervals = [(start[0], start[0] + length)]
+        self.cantor_set_proper(initial_intervals, depth, ax, color, y_pos, max_depth)
+    
+    def create_gradient_color(self, palette: List[str], depth: int, max_depth: int) -> str:
+        """Create gradient color based on depth."""
+        if max_depth == 0:
+            return palette[0]
+        
+        # Normalize depth to 0-1 range
+        normalized_depth = depth / max_depth
+        
+        # Convert palette colors to HSV for smooth interpolation
+        colors_hsv = []
+        for color in palette:
+            # Convert hex to RGB to HSV
+            hex_color = color.lstrip('#')
+            rgb = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+            hsv = colorsys.rgb_to_hsv(rgb[0]/255.0, rgb[1]/255.0, rgb[2]/255.0)
+            colors_hsv.append(hsv)
+        
+        # Interpolate between colors based on depth
+        color_index = normalized_depth * (len(colors_hsv) - 1)
+        lower_idx = int(color_index)
+        upper_idx = min(lower_idx + 1, len(colors_hsv) - 1)
+        
+        if lower_idx == upper_idx:
+            selected_hsv = colors_hsv[lower_idx]
+        else:
+            t = color_index - lower_idx
+            selected_hsv = (
+                colors_hsv[lower_idx][0] + t * (colors_hsv[upper_idx][0] - colors_hsv[lower_idx][0]),
+                colors_hsv[lower_idx][1] + t * (colors_hsv[upper_idx][1] - colors_hsv[lower_idx][1]),
+                colors_hsv[lower_idx][2] + t * (colors_hsv[upper_idx][2] - colors_hsv[lower_idx][2])
+            )
+        
+        # Convert back to hex
+        rgb = colorsys.hsv_to_rgb(selected_hsv[0], selected_hsv[1], selected_hsv[2])
+        hex_color = '#' + ''.join(f'{int(c*255):02x}' for c in rgb)
+        return hex_color
     
     def mandelbrot_set(self, ax, max_iter: int):
-        """Generate Mandelbrot set fractal."""
+        """Generate Mandelbrot set fractal with enhanced visualization."""
         # Define the region of interest
         x_min, x_max = -2.5, 1.5
         y_min, y_max = -2, 2
@@ -107,10 +239,24 @@ class FractalGenerator:
             Z[mask] = Z[mask]**2 + C[mask]
             iterations += mask
         
-        # Plot the result
-        ax.imshow(iterations, extent=[x_min, x_max, y_min, y_max], 
-                 cmap='hot', origin='lower')
-        ax.set_title('Mandelbrot Set')
+        # Create custom colormap with better colors
+        colors = ['#000428', '#004e92', '#009ffd', '#2a2a72', '#ff6b6b', '#feca57', '#48dbfb', '#ff9ff3']
+        n_bins = 256
+        cmap = LinearSegmentedColormap.from_list('mandelbrot', colors, N=n_bins)
+        
+        # Plot the result with enhanced colormap
+        im = ax.imshow(iterations, extent=[x_min, x_max, y_min, y_max], 
+                      cmap=cmap, origin='lower', aspect='equal')
+        
+        # Add colorbar
+        cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+        cbar.set_label('Iterations', rotation=270, labelpad=15)
+        
+        # Add grid for better visualization
+        ax.grid(True, alpha=0.3)
+        ax.set_xlabel('Real', fontsize=12)
+        ax.set_ylabel('Imaginary', fontsize=12)
+        ax.set_title('Mandelbrot Set', fontsize=14, pad=20)
 
 class FractalGUI:
     def __init__(self, root):
@@ -240,35 +386,39 @@ class FractalGUI:
         try:
             if self.current_fractal == "Sierpinski Triangle":
                 ax.set_aspect('equal')
-                ax.axis('off')
                 # Equilateral triangle coordinates
                 size = 200
                 points = [(-size, -size), (0, size), (size, -size)]
-                self.fractal_generator.sierpinski_triangle(points, self.depth, ax, palette)
+                self.fractal_generator.sierpinski_triangle(points, self.depth, ax, palette, 7)
                 ax.set_xlim(-size*1.2, size*1.2)
                 ax.set_ylim(-size*1.2, size*1.2)
+                ax.grid(True, alpha=0.3)
+                ax.set_xlabel('X', fontsize=12)
+                ax.set_ylabel('Y', fontsize=12)
                 
             elif self.current_fractal == "Koch Snowflake":
                 ax.set_aspect('equal')
-                ax.axis('off')
                 self.fractal_generator.koch_snowflake((0, 0), 300, self.depth, ax, palette)
                 ax.set_xlim(-200, 200)
                 ax.set_ylim(-200, 200)
+                ax.grid(True, alpha=0.3)
+                ax.set_xlabel('X', fontsize=12)
+                ax.set_ylabel('Y', fontsize=12)
                 
             elif self.current_fractal == "Cantor Set":
                 ax.set_aspect('equal')
-                ax.axis('off')
-                self.fractal_generator.cantor_set((-200, 0), 400, self.depth, ax, palette[0], 100)
+                self.fractal_generator.cantor_set((-200, 0), 400, self.depth, ax, palette[0], 100, 7)
                 ax.set_xlim(-250, 250)
                 ax.set_ylim(-200, 150)
+                ax.grid(True, alpha=0.3)
+                ax.set_xlabel('Position', fontsize=12)
+                ax.set_ylabel('Level', fontsize=12)
                 
             elif self.current_fractal == "Mandelbrot Set":
-                # For Mandelbrot, use depth as max iterations
-                max_iter = max(50, self.depth * 30 + 20)
+                # Enhanced Mandelbrot depth scaling
+                max_iter = max(20, self.depth * 50 + 50)  # Better scaling: 20-400 iterations
                 self.fractal_generator.mandelbrot_set(ax, max_iter)
                 ax.set_aspect('equal')
-                ax.set_xlabel('Real', color='#333333')
-                ax.set_ylabel('Imaginary', color='#333333')
             
             # Set title with proper spacing to avoid covering the image
             self.figure.suptitle(f"{self.current_fractal} (Depth: {self.depth})", 
