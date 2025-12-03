@@ -1,4 +1,5 @@
-# Fractal Generator GUI
+# README
+## Fractal Generator GUI
 
 A beautiful GUI application for generating and exploring various mathematical fractals with interactive controls.
 
@@ -84,3 +85,22 @@ One of the most famous fractals, showing the boundary between convergent and div
 - Higher depth values will take longer to compute, especially for the Mandelbrot set
 - The Mandelbrot set uses depth as a multiplier for maximum iterations
 - All fractals are rendered with high quality and can be saved at 300 DPI
+
+## GraphTheory
+
+Includes real world data analysis examples:
+
+- **Walmart Sales Data (`walmart_sales.xls`)**
+  - Used to explore regression, curve fitting, and time-series patterns
+  - Demonstrates how mathematical visualization can be applied to business data
+
+- **Video Game Sales Data (`video game sales.csv`)**
+  - Used for exploratory data analysis and regression modeling
+  - Highlights outlier handling, visualization, and model selection
+
+## Usage
+
+In addition to fractal visualization, you can run the Jupyter notebooks to analyze datasets:
+
+```bash
+jupyter notebook notebooks/graphTheory.ipynb
